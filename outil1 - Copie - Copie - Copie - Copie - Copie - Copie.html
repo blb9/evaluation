@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Évaluation du logement par étage</title>
+<style>
+  body {
+    font-family: "Poppins", sans-serif;
+    background: #f4f6f8;
+    margin: 0;
+    padding: 30px;
+    color: #333;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: auto;
+    background: white;
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  }
+
+  h1 {
+    text-align: center;
+    color: #1976d2;
+    margin-bottom: 25px;
+  }
+
+  h2 {
+    color: #1565c0;
+    border-bottom: 2px solid #bbdefb;
+    padding-bottom: 5px;
+  }
+
+  .etage {
+    margin-top: 25px;
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid #ccc;
+  }
+
+  .piece {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+
+  .piece-header {
+    background: #e3f2fd;
+    padding: 10px 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #ccc;
+  }
+
+  .piece-header h3 {
+    margin: 0;
+    font-size: 1.1em;
+    color: #1976d2;
+  }
+
+  .piece-content {
+    padding: 12px 15px;
+    display: none;
+  }
+
+  label {
+    display: block;
+    margin-top: 8px;
+    font-weight: 600;
+  }
+
+  input, select, textarea {
+    width: 100%;
+    padding: 8px;
+    margin-top: 4px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+  }
+
+  textarea {
+    resize: vertical;
+    height: 60px;
+  }
+
+  button {
+    background: #1976d2;
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.3s;
+    margin-top: 10px;
+  }
+
+  button:hover {
+    background: #0d47a1;
+  }
+
+  .btn-danger {
+    background: #c62828;
+    margin-left: 10px;
+  }
+
+  .btn-danger:hover {
+    background: #8e0000;
+  }
+
+  #resultat {
+    display: none;
+    background: #e3f2fd;
+    border-left: 5px solid #1976d2;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 25px;
+  }
+
+  #resume {
+    list-style-type: none;
+    padding: 0;
+  }
+
+  #resume li {
+    background: #f9f9f9;
+    border-radius: 8px;
+    margin: 8px 0;
+    padding: 10px;
+    border: 1px solid #ddd;
+  }
+
+  .footer {
+    text-align: center;
+    margin-top: 25px;
+    color: #777;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>Évaluation du logement par étage</h1>
+
+    <label>Nom du chantier :</label>
+    <input type="text" id="nomChantier" placeholder="Ex : Résidence Les Lilas - Bâtiment A">
+
+    <label>Type de bien :</label>
+    <select id="typeBien">
+      <option>Maison</option>
+      <option>Appartement</option>
+      <option>Local commercial</option>
+    </select>
+
+    <label>Nombre d’étages :</label>
+    <input type="number" id="nbEtages" min="1" max="10" value="1" onchange="genererEtages()">
+
+    <div id="etagesContainer"></div>
+
+    <button onclick="genererRapport()">📋 Générer le rapport</button>
+
+    <div id="resultat">
+  <h2>Rapport d’évaluation</h2>
+  <div id="infosChantier"></div>
+  <ul id="resume"></ul>
+
+  <!-- 🧮 Bilan global intégré au rapport -->
+  <div id="bilanGlobal" style="margin-top:30px; padding:15px; border:2px solid #000; border-radius:8px; background:#f9f9f9;">
+    <h3>Bilan global</h3>
+    <p><strong>Nombre total d'étages :</strong> <span id="totalEtages">0</span></p>
+    <p><strong>Nombre total de pièces :</strong> <span id="totalPieces">0</span></p>
+    <p><strong>Surface totale estimée :</strong> <span id="surfaceTotale">0</span> m²</p>
+	<p><strong>Nombre total de meubles :</strong> <span id="totalMeubles">0</span></p>
+  </div>
+</div>
+
+  <div class="footer">© 2025 - Évaluation immobilière interactive</div>
+
+  <script>
+    // 🔧 Surface standardisée (modifiable si besoin)
+    const surfacesStandard = {
+      "Entrée": 5,
+	  "Salon": 20,
+	  "Chambre": 9,
+      "Cuisine": 12,
+      "Salle de bain": 6,
+      "Toilettes": 2,
+      "Buanderie": 5,
+      "Bureau": 10,
+      "Garage": 18,
+      "Couloir": 4,
+      "Autre": 8
+    };
+
+    function genererEtages() {
+  const container = document.getElementById('etagesContainer');
+  const nbEtages = parseInt(document.getElementById('nbEtages').value);
+
+  // Récupère les étages déjà présents
+  const etagesExistants = container.querySelectorAll('.etage').length;
+
+  // Si on ajoute des étages supplémentaires
+  if (nbEtages > etagesExistants) {
+    for (let i = etagesExistants + 1; i <= nbEtages; i++) {
+      const etageDiv = document.createElement('div');
+      etageDiv.className = 'etage';
+      etageDiv.id = `etage${i}`;
+      etageDiv.innerHTML = `
+        <h2>Étage ${i}</h2>
+        <div id="listePieces${i}"></div>
+        <button onclick="ajouterPiece(${i})">➕ Ajouter une pièce à cet étage</button>
+      `;
+      container.appendChild(etageDiv);
+    }
+  }
+  // Si on réduit le nombre d'étages
+  else if (nbEtages < etagesExistants) {
+    for (let i = etagesExistants; i > nbEtages; i--) {
+      const etage = document.getElementById(`etage${i}`);
+      if (etage) etage.remove();
+    }
+  }
+}
+
+    let compteur = 0;
+    function ajouterPiece(etage) {
+      compteur++;
+      const div = document.createElement('div');
+      div.className = 'piece';
+      div.id = `piece${compteur}`;
+
+      div.innerHTML = `
+        <div class="piece-header" onclick="togglePiece(${compteur})">
+          <h3 id="titrePiece${compteur}">Pièce ${compteur}</h3>
+          <span>▼</span>
+        </div>
+        <div class="piece-content" id="contenuPiece${compteur}">
+          <label>Nom de la pièce :</label>
+          <input type="text" id="nom${compteur}" placeholder="Ex : Chambre parentale" oninput="majTitre(${compteur})"/>
+
+          <label>Type de pièce :</label>
+          <select id="typePiece${compteur}" onchange="majSurface(${compteur}); mettreAJourBilan();">
+            <option value="">-- Sélectionnez un type --</option>
+            ${Object.keys(surfacesStandard).map(type => `<option value="${type}">${type}</option>`).join('')}
+          </select>
+
+          <label>Surface (m²) :</label>
+          <input type="number" id="surface${compteur}" min="1" step="0.1" placeholder="Auto" />
+
+          <label>Présence de meubles :</label>
+          <select id="meubles${compteur}" onchange="gererMeubles(${compteur})">
+            <option value="Oui">Oui</option>
+            <option value="Non">Non</option>
+          </select>
+
+          <div id="nbMeublesContainer${compteur}" style="display:none;">
+            <label>Nombre de meubles :</label>
+            <input type="number" id="nbMeubles${compteur}" min="0" value="0">
+          </div>
+
+          <label>Taux d’encombrement :</label>
+          <select id="encombrement${compteur}">
+            <option value="Faible">Faible</option>
+            <option value="Moyen">Moyen</option>
+            <option value="Élevé">Élevé</option>
+          </select>
+
+          <label>État général :</label>
+          <select id="etat${compteur}">
+            <option value="Bon">Bon</option>
+            <option value="Moyen">Moyen</option>
+            <option value="Mauvais">Mauvais</option>
+          </select>
+
+          <label>Commentaires :</label>
+          <textarea id="commentaire${compteur}" placeholder="Observations, remarques..."></textarea>
+
+          <input type="hidden" id="etageAssocie${compteur}" value="${etage}">
+          <button class="btn-danger" onclick="supprimerPiece(${compteur})">❌ Supprimer</button>
+        </div>
+      `;
+
+      document.getElementById(`listePieces${etage}`).appendChild(div);
+    gererMeubles(compteur);
+	mettreAJourBilan();
+	}
+
+    function majSurface(id) {
+      const type = document.getElementById(`typePiece${id}`).value;
+      const champSurface = document.getElementById(`surface${id}`);
+      if (type && surfacesStandard[type]) {
+        champSurface.value = surfacesStandard[type];
+      } else {
+        champSurface.value = "";
+      }
+    }
+
+    function gererMeubles(id) {
+      const select = document.getElementById(`meubles${id}`);
+      const nbContainer = document.getElementById(`nbMeublesContainer${id}`);
+      nbContainer.style.display = (select.value === "Oui") ? "block" : "none";
+    }
+
+    function togglePiece(id) {
+      const content = document.getElementById(`contenuPiece${id}`);
+      const header = document.querySelector(`#piece${id} .piece-header span`);
+      if (content.style.display === 'block') {
+        content.style.display = 'none';
+        header.textContent = '▼';
+      } else {
+        content.style.display = 'block';
+        header.textContent = '▲';
+      }
+    }
+
+    function majTitre(id) {
+      const nom = document.getElementById(`nom${id}`).value;
+      const titre = document.getElementById(`titrePiece${id}`);
+      titre.textContent = nom ? nom : `Pièce ${id}`;
+    }
+
+    function supprimerPiece(id) {
+      document.getElementById(`piece${id}`).remove();
+	  mettreAJourBilan();
+    }
+
+    function genererRapport() {
+      const nomChantier = document.getElementById('nomChantier').value.trim();
+      if (!nomChantier) {
+        alert("Merci de renseigner le nom du chantier avant de générer le rapport !");
+        return;
+      }
+
+      const typeBien = document.getElementById('typeBien').value;
+      const nbEtages = parseInt(document.getElementById('nbEtages').value);
+      const pieces = document.querySelectorAll('.piece');
+      if (pieces.length === 0) {
+        alert("Ajoutez au moins une pièce !");
+        return;
+      }
+
+      let rapportHTML = "";
+      let compteurBon = 0, compteurMoyen = 0, compteurMauvais = 0;
+
+      for (let i = 1; i <= nbEtages; i++) {
+        let etageHTML = `<h3>Étage ${i}</h3><ul>`;
+        let aDesPieces = false;
+
+        pieces.forEach(piece => {
+          const id = piece.id.replace('piece', '');
+          const etageAssocie = document.getElementById(`etageAssocie${id}`).value;
+          if (parseInt(etageAssocie) !== i) return;
+
+          aDesPieces = true;
+          const nom = document.getElementById(`nom${id}`).value || `Pièce ${id}`;
+          const typePiece = document.getElementById(`typePiece${id}`).value || "Non précisé";
+          const surface = document.getElementById(`surface${id}`).value || (surfacesStandard[typePiece] || "?");
+          const meubles = document.getElementById(`meubles${id}`).value;
+          const nbMeubles = document.getElementById(`nbMeubles${id}`)?.value || 0;
+          const encombrement = document.getElementById(`encombrement${id}`).value;
+          const etat = document.getElementById(`etat${id}`).value;
+          const commentaire = document.getElementById(`commentaire${id}`).value;
+
+          if (etat === "Bon") compteurBon++;
+          else if (etat === "Moyen") compteurMoyen++;
+          else compteurMauvais++;
+
+          etageHTML += `
+            <li>
+              <b>${nom}</b> (${typePiece}, ${surface} m²) — Meubles : ${meubles}${meubles === "Oui" ? ` (${nbMeubles} meuble${nbMeubles > 1 ? "s" : ""})` : ""}, 
+              Encombrement : ${encombrement}, État : ${etat}<br>
+              <i>${commentaire || "Aucun commentaire."}</i>
+            </li>
+          `;
+        });
+
+        etageHTML += "</ul>";
+        if (aDesPieces) rapportHTML += etageHTML;
+      }
+
+      const total = compteurBon + compteurMoyen + compteurMauvais;
+      const bilan = `
+        <hr>
+        <p><b>Bilan global :</b></p>
+        <p>✔️ Bon état : ${compteurBon} / ${total}<br>
+        ⚠️ Moyen : ${compteurMoyen} / ${total}<br>
+        ❌ Mauvais : ${compteurMauvais} / ${total}</p>
+      `;
+
+      document.getElementById('infosChantier').innerHTML = `
+        <p><b>Nom du chantier :</b> ${nomChantier}<br>
+        <b>Type de bien :</b> ${typeBien}</p><hr>
+      `;
+
+      document.getElementById('resume').innerHTML = rapportHTML + bilan;
+      document.getElementById('resultat').style.display = 'block';
+    }
+
+function mettreAJourBilan() {
+  const etages = document.querySelectorAll('.etage');
+  const totalEtages = etages.length;
+  let totalPieces = 0;
+  let surfaceTotale = 0;
+  let totalMeubles = 0;
+
+  etages.forEach(etage => {
+    const pieces = etage.querySelectorAll('.piece');
+    totalPieces += pieces.length;
+
+    pieces.forEach(piece => {
+      const id = piece.id.replace('piece', '');
+      const typeSelect = document.getElementById(`typePiece${id}`);
+      const surfaceInput = document.getElementById(`surface${id}`);
+      const meublesSelect = document.getElementById(`meubles${id}`);
+      const nbMeublesInput = document.getElementById(`nbMeubles${id}`);
+
+      // Surface
+      if (typeSelect && surfaceInput) {
+        let surface = parseFloat(surfaceInput.value);
+        if (isNaN(surface)) {
+          const type = typeSelect.value;
+          surface = surfacesStandard[type] || 0;
+        }
+        surfaceTotale += surface;
+      }
+
+      // Meubles
+      if (meublesSelect && meublesSelect.value === "Oui" && nbMeublesInput) {
+        const nb = parseInt(nbMeublesInput.value) || 0;
+        totalMeubles += nb;
+      }
+    });
+  });
+
+  document.getElementById('totalEtages').textContent = totalEtages;
+  document.getElementById('totalPieces').textContent = totalPieces;
+  document.getElementById('surfaceTotale').textContent = surfaceTotale.toFixed(1);
+  document.getElementById('totalMeubles').textContent = totalMeubles;
+}
+
+
+    genererEtages();
+	mettreAJourBilan();
+  </script>
+</body>
+</html>
